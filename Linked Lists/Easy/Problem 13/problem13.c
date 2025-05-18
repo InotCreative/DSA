@@ -8,6 +8,7 @@ Deletion at the End in Doubly Linked List
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 typedef struct Node {
     int data;
