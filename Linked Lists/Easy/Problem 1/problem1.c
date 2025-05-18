@@ -1,142 +1,152 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef struct DynamicArray {
+    size_t size;
+    size_t capacity;
+    void **nodeAddresses;
+} DynamicArray;
+
 typedef struct Node {
     int data;
-    int index;
     struct Node *next;
 } Node;
 
+#define INITIAL_CAPACITY 8
 
-void append(Node **head, int data) {
+void growArray(DynamicArray *array) {
+    if (array->capacity == 0) {
+        array->capacity = INITIAL_CAPACITY;
+        array->nodeAddresses = (void **)malloc(array->capacity * sizeof(void *));
+    } else {
+        array->capacity *= 2;
+        void **temp = (void **)realloc(array->nodeAddresses, array->capacity * sizeof(void *));
+        if (temp == NULL) {
+            fprintf(stderr, "ERROR | REALLOC FAILED\n");
+            exit(EXIT_FAILURE);
+        }
+        array->nodeAddresses = temp;
+    }
+
+    if (array->nodeAddresses == NULL) {
+        fprintf(stderr, "ERROR | MALLOC FAILED\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void push(DynamicArray *array, void *nodeAddress) {
+    if (array->size >= array->capacity) {
+        growArray(array);
+    }
+
+    array->nodeAddresses[array->size] = nodeAddress;
+    array->size++;
+}
+
+void init(DynamicArray *array) {
+    array->capacity = 0;
+    array->size = 0;
+    array->nodeAddresses = NULL;
+}
+
+void append(Node **head, DynamicArray *array, int data) {
     Node *newNode = (Node *)malloc(sizeof(Node));
-    int index = 0;
+    if (newNode == NULL) {
+        fprintf(stderr, "ERROR | MALLOC FAILED\n");
+        exit(EXIT_FAILURE);
+    }
 
     newNode->data = data;
     newNode->next = NULL;
 
     if (*head == NULL) {
-        newNode->index = 0;
         *head = newNode;
-        return;
-    }
-
-    Node *temp = *head;
-
-    for (; temp != NULL; temp=temp->next) {
-        index++;
-
-        if (temp->next == NULL) {
-            newNode->index = index;
-            temp->next = newNode;
-            return;
+    } else {
+        Node *temp = *head;
+        while (temp->next != NULL) {
+            temp = temp->next;
         }
+        temp->next = newNode;
     }
+
+    push(array, (void *)newNode);
 }
 
-void betterAppend(Node **head, int *data, int length) {
+void betterAppend(Node **head, DynamicArray *array, int *intArray, int length) {
     for (int i = 0; i < length; i++) {
-        append(head, data[i]);
+        append(head, array, intArray[i]);
     }
-}
-
-void freeList(Node **head) {
-    Node *temp = NULL;
-    
-    while (*head != NULL) {
-        temp = *head;
-        *head = (*head)->next;
-        free(temp);
-    }
-
-    *head = NULL;
 }
 
 void printList(Node *head) {
     for (Node *temp = head; temp != NULL; temp = temp->next) {
         printf("%d->", temp->data);
     }
-
-    printf("NULL\n");
+    printf("NULL\n\n");
 }
 
+void printDynamicArray(DynamicArray *array) {
+    for (int i = 0; i < array->size; i++) {
+        Node *node = (Node *)array->nodeAddresses[i];
+        printf("ADDRESS: %p | VALUE: %d | INDEX: %d\n", (void *)node, node->data, i);
+    }
+}
 
-void removeNode(Node **head, int index) {
-    Node *toDelete = NULL;
-
-    if (index == 0) {
-        toDelete = *head;
+void freeNode(Node **head) {
+    Node *temp;
+    while (*head != NULL) {
+        temp = *head;
         *head = (*head)->next;
+        free(temp);
+    }
+    *head = NULL;
+}
 
-        free(toDelete);
-        return;
+void solution(Node **head, DynamicArray *array, int k) {
+    if (array->size == 0 || k <= 0) return;
+
+    *head = (Node *)array->nodeAddresses[0];
+    Node *temp = *head;
+    int count = 1;
+
+    for (int i = 1; i < array->size; i++) {
+        if ((count % k) != 0) {
+            temp->next = (Node *)array->nodeAddresses[i];
+            temp = temp->next;
+        }
+        count++;
     }
 
-    for (Node *temp = *head; temp != NULL; temp = temp->next) {
-        if (temp->next->index == index) {
-            toDelete = temp->next;
-            temp->next = toDelete->next;
-
-            free(toDelete);
-            return;
-        }
+    if (temp != NULL) {
+        temp->next = NULL;
     }
 }
 
-void removeKthList(Node **head, int k) {
-    int length = 1;
 
-    for (Node *temp = *head; temp != NULL; temp = temp->next) {
-        length++;
-    }
-
-    int *indicesToRemove = (int *)malloc(length * sizeof(int));
-    int arrayIndex = 0;
-
-    for (Node *temp = *head; temp != NULL; temp = temp->next) {
-        if ((temp->index + 1) % k != 0) {
-            indicesToRemove[arrayIndex] = temp->index;
-            arrayIndex++;
-        }
-    }
-
-    for (int i = 0; i < arrayIndex; i++) {
-        removeNode(head, indicesToRemove[i]);
-    }
-
+void freeArray(DynamicArray *array) {
+    free(array->nodeAddresses);
+    array->nodeAddresses = NULL;
+    array->size = 0;
+    array->capacity = 0;
 }
 
+int main(void) {
+    Node *head = NULL;
+    DynamicArray array;
 
-int main() {
-    /*
-        Input: LinkedList: 1 -> 2 -> 3 -> 4 -> 5 -> 6, k = 2
-                           1.   2.   3.   4.   5.   6
-        Output: 1 -> 3 -> 5 
-        Explanation: After removing every 2nd node of the linked list, the resultant linked list will be: 1 -> 3 -> 5 .
-
-
-        Input: LinkedList: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10, k = 3
-                           1.   2.   3.   4.   5.   6.   7.   8.   9.   10
-        Output: 1 -> 2 -> 4 -> 5 -> 7 -> 8 -> 10
-        Explanation: After removing every 3rd node of the linked list, the resultant linked list will be: 1 -> 2 -> 4 -> 5 -> 7 -> 8 -> 10.
-    */
-
-    int data[] = {1, 2, 3, 4, 5, 6};
     int dataTwo[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    int length = sizeof(dataTwo) / sizeof(dataTwo[0]);
 
-    Node *list = NULL;
-    betterAppend(&list, &data[0], (sizeof(data) / sizeof(data[0])));
-    removeKthList(&list, 2);
-    
-    printList(list);
-    freeList(&list);
+    init(&array);
+    betterAppend(&head, &array, dataTwo, length);
+    printList(head);
+    printDynamicArray(&array);
 
+    solution(&head, &array, 3);
+    printList(head);
 
-    betterAppend(&list, &dataTwo[0], (sizeof(dataTwo) / sizeof(data[0])));
-    removeKthList(&list, 3);
-
-    printList(list);
-    freeList(&list);
+    freeNode(&head);
+    freeArray(&array);
 
     return 0;
 }
