@@ -20,6 +20,54 @@ typedef struct DynamicArray {
 
 } DynamicArray;
 
+typedef struct QueueNode {
+    void *nodeAddress;
+    struct QueueNode *next;
+} QueueNode;
+
+typedef struct Queue {
+    size_t length;
+
+    QueueNode *head;
+    QueueNode *tail;
+
+    void (* enqueue)(struct Queue *, void *);
+    void *(* dequeue)(struct Queue *);
+} Queue;
+
+void enqueue(Queue *queue, void *address) {
+    QueueNode *newNode = (QueueNode *)malloc(sizeof(QueueNode));
+    TEST(newNode, NULL, "MALLOC");
+
+    newNode->next = NULL;
+    newNode->nodeAddress = address;
+
+    if (queue->head == NULL) {
+        queue->head = newNode;
+        queue->tail = newNode;
+        queue->length++;
+        return;
+    }
+
+    queue->tail->next = newNode;
+    queue->tail = newNode;
+    queue->length++;
+}
+
+void *dequeue(Queue *queque) {
+    if (queque->head == NULL) return NULL;
+
+    QueueNode *address = queque->head;
+
+    queque->head = queque->head->next;
+    if (queque->head == NULL) {
+        queque->tail = NULL;
+    }
+
+    queque->length--;
+    return address;
+}
+
 void growArray(DynamicArray *array) {
     if (array->size == 0) {
         array->capacity = 8;
@@ -70,6 +118,20 @@ void freeArray(DynamicArray *array) {
     free(array->array);
 }
 
+void freeQueue(Queue *queue) {
+    QueueNode *temp = NULL;
+
+    while ((queue)->head != NULL) {
+        temp = (queue)->head;
+
+        (queue)->head = (queue)->head->next;
+        free(temp);
+    }
+
+    (queue)->head = NULL;
+    (queue)->tail = NULL;
+}
+
 void makeVertex(DynamicArray *array, int data) {
     GraphNode *newNode = (GraphNode *)malloc(sizeof(GraphNode));
     TEST(newNode, NULL, "MALLOC");
@@ -114,7 +176,7 @@ void printList(DynamicArray *array) {
     }
 }
 
-DynamicArray init() {
+DynamicArray initArray() {
     return (DynamicArray){
         .size = 0,
         .capacity = 0,
@@ -125,8 +187,52 @@ DynamicArray init() {
     };
 }
 
+Queue initQueue() {
+    return (Queue){
+        .length = 0,
+        .head = NULL,
+        .tail = NULL,
+        .enqueue = enqueue,
+        .dequeue = dequeue
+    };
+}
+
+void bredthFirstSearch(DynamicArray *array, int startNode) {
+    Queue queue = initQueue();
+
+    char *booleanArray = (char *)calloc(array->size, sizeof(char));
+    TEST(booleanArray, NULL, "CALLOC");
+
+    queue.enqueue(&queue, array->array[startNode]);
+    booleanArray[startNode] = 1;
+
+    printf("BFS ORDER\n");
+
+    while (queue.length > 0) {
+        QueueNode *current = (QueueNode *)queue.dequeue(&queue);
+
+        GraphNode *graphNode = (GraphNode *)current->nodeAddress;
+        printf("%d ", graphNode->data);
+
+        for (GraphNode *temp = graphNode->next; temp != NULL; temp = temp->next) {
+            int neighborIndex = temp->data;
+            if (booleanArray[neighborIndex] == 0) {
+                booleanArray[neighborIndex] = 1;
+                queue.enqueue(&queue, array->array[neighborIndex]);
+            }
+        }
+
+        free(current);
+    }
+
+    printf("\n");
+
+    array->freeArray(array);
+    freeQueue(&queue);
+}
+
 int main(int argc, char const *argv[]) {
-    DynamicArray adjacencyList = init();
+    DynamicArray adjacencyList = initArray();
 
     makeVertex(&adjacencyList, 0);
     makeVertex(&adjacencyList, 1);
@@ -151,7 +257,6 @@ int main(int argc, char const *argv[]) {
     addEdge(&adjacencyList, 4, 2);
     addEdge(&adjacencyList, 4, 3);
 
-    adjacencyList.printList(&adjacencyList);
-    adjacencyList.freeArray(&adjacencyList);
+    bredthFirstSearch(&adjacencyList, 0);
     return 0;
 }
