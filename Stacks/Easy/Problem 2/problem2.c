@@ -34,23 +34,23 @@ typedef struct Stack {
 } Stack;
 
 void push(Stack *stack, char character) {
-    StackNode *newQueueNode = (StackNode *)malloc(sizeof(StackNode));
-    TEST(newQueueNode == NULL, "ERROR: MALLOC @ LINE 30");
+    StackNode *newStackNode = (StackNode *)malloc(sizeof(StackNode));
+    TEST(newStackNode == NULL, "ERROR: MALLOC @ LINE 30");
 
-    newQueueNode->character = character;
-    newQueueNode->next = NULL;
+    newStackNode->character = character;
+    newStackNode->next = NULL;
 
     if (stack->head == NULL) {
-        stack->head = newQueueNode;
-        stack->tail = newQueueNode;
+        stack->head = newStackNode;
+        stack->tail = newStackNode;
         stack->head->previous = NULL;
         stack->length++;
         return;
     }
 
-    newQueueNode->next = stack->head;
-    stack->head->previous = newQueueNode;
-    stack->head = newQueueNode;
+    newStackNode->next = stack->head;
+    stack->head->previous = newStackNode;
+    stack->head = newStackNode;
     stack->length++;
 }
 

@@ -31,7 +31,7 @@ typedef struct Queue {
     QueueNode *head;
     QueueNode *tail;
 
-    void (* enqueue)(struct Queue *, void *);
+    QueueNode (* enqueue)(struct Queue *, void *);
     void *(* dequeue)(struct Queue *);
 } Queue;
 
