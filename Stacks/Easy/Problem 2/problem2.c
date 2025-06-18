@@ -1,88 +1,67 @@
-/*
-Given a string str, the task is to reverse it using stack. 
-
-Example:
-
-Input: s = "GeeksQuiz"
-Output: ziuQskeeG
-
-Input: s = "abc"
-Output: cba
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define TEST(comp, message) {if (comp) {perror(message); exit(EXIT_FAILURE);}}
+#define MEM_TEST(ptr, cmp, message) {if(ptr == cmp){perror(message); exit(EXIT_FAILURE);}}
 
 typedef struct StackNode {
-    char character;
-    
+    int symbol;
     struct StackNode *next;
     struct StackNode *previous;
 } StackNode;
 
-typedef struct Stack {    
+typedef struct Stack {
     StackNode *head;
     StackNode *tail;
 
-    size_t length;
-    void (* push)(struct Stack *, char);
-    void (* printStack)(struct Stack *, int);
+    void (* push)(struct Stack *, int);
+    StackNode *(* pop)(struct Stack *);
     void (* freeStack)(struct Stack *);
+    void (* printStack)(struct Stack *, int);
 } Stack;
 
-void push(Stack *stack, char character) {
+void push(Stack *stack, int symbol) {
     StackNode *newStackNode = (StackNode *)malloc(sizeof(StackNode));
-    TEST(newStackNode == NULL, "ERROR: MALLOC @ LINE 30");
+    MEM_TEST(newStackNode, NULL, "MALLOC\n");
 
-    newStackNode->character = character;
-    newStackNode->next = NULL;
+    newStackNode->symbol   = symbol;
+    newStackNode->next     = NULL;
+    newStackNode->previous = NULL;
 
     if (stack->head == NULL) {
-        stack->head = newStackNode;
-        stack->tail = newStackNode;
-        stack->head->previous = NULL;
-        stack->length++;
+        stack->head            = newStackNode;
+        newStackNode->previous = NULL;
+        newStackNode->next     = NULL;
+        stack->tail            = newStackNode;
         return;
     }
 
     newStackNode->next = stack->head;
     stack->head->previous = newStackNode;
     stack->head = newStackNode;
-    stack->length++;
+}
+
+StackNode *pop(Stack *stack) {
+    if (stack->head == NULL) return NULL;
+
+    StackNode *returnAddress = stack->head;
+    stack->head = stack->head->next;
+
+    if (stack->head != NULL) stack->head->previous = NULL;
+    else stack->tail = NULL;
+
+    return returnAddress;
 }
 
 void printStack(Stack *stack, int flag) {
-    switch (flag) {
-        case 0: {
-            printf("[");
-            for (StackNode *temp = stack->head; temp != NULL; temp = temp->next) {
-                if (temp->next->next == NULL) {
-                    printf("\'%c\'", temp->character);
-                    break;
-                } else {
-                    printf("\'%c\', ", temp->character);
-                }
-            }
-            printf("]\n");
-
-            break;
-        } case 1: {
-            printf("[");
-            for (StackNode *temp = stack->tail; temp != NULL; temp = temp->previous) {
-                if (temp->previous->previous == NULL) {
-                    printf("\'%c\'", temp->character);
-                    break;
-                } else {
-                    printf("\'%c\', ", temp->character);
-                }
-            }
-            printf("]\n");
-
-            break;
-        }
+    if (flag == 0) {
+        printf("FORWARD TRAVLE\n");
+        for (StackNode *temp = stack->head; temp != NULL; temp = temp->next) printf("%d->", temp->symbol);
+        printf("NULL\n");
+    } else {
+        printf("BACKWARD TRAVLE\n");
+        for (StackNode *temp = stack->tail; temp != NULL; temp = temp->previous) printf("%d->", temp->symbol);
+        printf("NULL\n");
     }
 }
 
@@ -91,8 +70,8 @@ void freeStack(Stack *stack) {
 
     while (stack->head != NULL) {
         temp = stack->head;
-        stack->head = stack->head->next;
 
+        stack->head = stack->head->next;
         free(temp);
     }
 
@@ -104,36 +83,60 @@ Stack initStack() {
     return (Stack){
         .head       = NULL,
         .tail       = NULL,
-        .length     = 0,
         .push       = push,
-        .printStack = printStack,
-        .freeStack  = freeStack
+        .pop        = pop,
+        .freeStack  = freeStack,
+        .printStack = printStack
     };
 }
 
-void reverseStringStack(const char *string) {
-    Stack reversedStringStack = initStack();
-    char *reversedString;
+long double evulateReversePolish(char *arrayOfSymbols[], int length) {
+    Stack solution = initStack();
 
-    for (int i = 0; i < strlen(string); i++) reversedStringStack.push(&reversedStringStack, string[i]);
+    for (int i = 0; i < length; i++) {
+        if ((strcmp(arrayOfSymbols[i], "+") == 0) || (strcmp(arrayOfSymbols[i], "-") == 0) || (strcmp(arrayOfSymbols[i], "*") == 0) || (strcmp(arrayOfSymbols[i], "/") == 0)) {
+            StackNode *firstOperand = solution.pop(&solution);
+            StackNode *secondOperand = solution.pop(&solution);
 
-    reversedString = (char *)malloc((reversedStringStack.length + 1) * sizeof(char));
+            switch (arrayOfSymbols[i][0]) {
+                case '+':
+                    solution.push(&solution, (firstOperand->symbol + secondOperand->symbol));
+                    break;
+                case '-':
+                    solution.push(&solution, (firstOperand->symbol - secondOperand->symbol));
+                    break;
+                case '*':
+                    solution.push(&solution, (firstOperand->symbol * secondOperand->symbol));
+                    break;
+                case '/':
+                    solution.push(&solution, (secondOperand->symbol / firstOperand->symbol));
+                    break;
+            }
 
-    int i = 0;
-    for (StackNode *temp = reversedStringStack.head; temp != NULL; temp = temp->next) {
-        reversedString[i] = temp->character;
-        i++;
+            free(firstOperand);
+            free(secondOperand);
+        } else {
+            solution.push(&solution, atoi(arrayOfSymbols[i]));
+        }
     }
 
-    reversedString[reversedStringStack.length] = '\0';
+    StackNode *answer = solution.pop(&solution);
+    long double finalAnswer = ((long double)answer->symbol);
 
-    printf("ORIGINAL STRING: %s\n", string);
-    printf("REVERSED STRING: %s\n", reversedString);
+    free(answer);
+    solution.freeStack(&solution);
 
-    free(reversedString);
+    return finalAnswer;
 }
 
 int main(int argc, char const *argv[]) {
-    reverseStringStack("hello world");
+    char *token[] = {"2","1","+","3","*"};
+    char *tokenTwo[] = {"4","13","5","/","+"};
+    char *tokenThree[] = {"10","6","9","3","+","-11","*","/","*","17","+","5","+"};
+
+    printf("%LF\n", evulateReversePolish(token, (sizeof(token) / sizeof(token[0]))));
+    printf("%LF\n", evulateReversePolish(tokenTwo, (sizeof(tokenTwo) / sizeof(tokenTwo[0]))));
+    printf("%LF\n", evulateReversePolish(tokenThree, (sizeof(tokenThree) / sizeof(tokenThree[0]))));
+
     return 0;
 }
